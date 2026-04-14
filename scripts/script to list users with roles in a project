@@ -1,0 +1,43 @@
+import groovy.json.JsonSlurper
+
+// Helper function to make REST API calls
+def makeApiCall(String endpoint) {
+    def response = get(endpoint)
+        .header("Accept", "application/json")
+        .asString()
+    return new JsonSlurper().parseText(response.body)
+}
+
+// Fetch the project by key
+def projectKey = "SAPS4PROD"
+def projects = makeApiCall("/rest/api/3/project")
+def targetProject = projects.find { it.key == projectKey }
+
+if (!targetProject) {
+    println "Project with key '${projectKey}' not found."
+    return
+}
+
+def result = []
+
+// Fetch roles for the specific project
+def roles = makeApiCall("/rest/api/3/project/${targetProject.id}/role")
+roles.each { roleName, roleUrl ->
+    def roleDetails = makeApiCall(roleUrl)
+    roleDetails.actors.each { actor ->
+        result << [
+            "User": actor.displayName,
+            "Role": roleName
+        ]
+    }
+}
+
+// Print results in a table-like format in the logs
+def tableHeader = "| User            | Role           |"
+def separator = "|-----------------|----------------|"
+println(tableHeader)
+println(separator)
+
+result.each { row ->
+    println("| ${row['User'].padRight(15)} | ${row['Role'].padRight(14)} |")
+}

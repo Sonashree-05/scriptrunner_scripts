@@ -1,0 +1,127 @@
+// use script listener to this
+
+  // Import the required module to interact with Jira REST API
+import groovy.json.JsonSlurper
+import groovy.json.JsonOutput
+import org.apache.http.client.methods.HttpPost
+import org.apache.http.impl.client.HttpClients
+import org.apache.http.entity.StringEntity
+
+// Define variables
+String jiraBaseUrl = 'https://sonashrees.atlassian.net'  // Replace with your Jira cloud URL
+String apiToken = 'ATATT3xFfGF0PZnmuO2tPh6CiHlCBcvXZfoQyAD0tIE2FM6Bha9SRoF-NB9OigCihRE-bHoV_1exMm3ulQmnlzRW4xtcX-NVTp8rS4AIsxRDuPcJn9M8NCQPYkfnnaFZz63Y_BmNuY2ZLv6w2Hmv2rQecxtYLNFz4SMBGXmSB55IhURyrabPO6w=BE8DD586'  // Replace with your API token
+String jiraUserEmail = 'sonashrees@devtools.in'  // Replace with your Jira email
+
+// Initialize the HTTP client once for use in both the issue creation and issue linking steps
+def httpClient = HttpClients.createDefault()
+
+// Check if the issue exists in the event
+if (!event.issue) {
+    logger.error "No issue found in the event. Exiting."
+    return
+}
+
+// Get the current issue from the event
+def issue = event.issue
+
+// Log the actual issue type and status for debugging
+logger.info "Issue type: ${issue.fields.issuetype.name}"
+logger.info "Issue status: ${issue.fields.status.name}"
+
+// Check if the issue is of type RCA and the transition is to Done
+if (issue.fields.issuetype.name == 'Story' && issue.fields.status.name == 'Done') {
+    
+    // Prepare the new issue details with ADF for the description field
+    def newIssueData = [
+        fields: [
+            project: [
+                key: 'SPNI'  // Replace with your project key
+            ],
+            summary: "Follow-up for ${issue.key}",
+            description: [
+                type: "doc",
+                version: 1,
+                content: [
+                    [
+                        type: "paragraph",
+                        content: [
+                            [
+                                type: "text",
+                                text: "This issue was automatically created because RCA issue ${issue.key} transitioned to Done."
+                            ]
+                        ]
+                    ]
+                ]
+            ],
+            issuetype: [
+                name: 'Task'  // Change to the issue type you want (e.g., Task, Bug, Story)
+            ]
+        ]
+    ]
+    
+    def newIssueKey = ""
+    
+    try {
+        // Create the new issue by sending a POST request to Jira REST API
+        def post = new HttpPost("${jiraBaseUrl}/rest/api/3/issue")
+        post.setHeader('Authorization', "Basic " + "${jiraUserEmail}:${apiToken}".bytes.encodeBase64().toString())
+        post.setHeader('Content-Type', 'application/json')
+        
+        // Convert the new issue data to JSON
+        def newIssueJson = JsonOutput.toJson(newIssueData)
+        post.setEntity(new StringEntity(newIssueJson))
+        
+        def response = httpClient.execute(post)
+        def responseBody = response.entity.content.text
+        
+        // Parse the response
+        def jsonResponse = new JsonSlurper().parseText(responseBody)
+        
+        if (response.statusLine.statusCode == 201) {
+            newIssueKey = jsonResponse.key
+            logger.info "New issue created successfully: ${newIssueKey}"
+        } else {
+            logger.error "Failed to create new issue. Status: ${response.statusLine.statusCode}, Response: ${responseBody}"
+            return  // Exit the script if the issue creation failed
+        }
+    } catch (Exception e) {
+        logger.error "An error occurred while creating the issue: ${e.message}"
+        return  // Exit the script if there was an error
+    }
+    
+    // Now, link the newly created issue to the original issue
+    try {
+        def linkData = [
+            type: [
+                name: 'Relates'  // Change this to the link type you want (e.g., "Blocks", "Clones", etc.)
+            ],
+            inwardIssue: [
+                key: newIssueKey  // The new issue
+            ],
+            outwardIssue: [
+                key: issue.key  // The original RCA issue
+            ]
+        ]
+        
+        def linkPost = new HttpPost("${jiraBaseUrl}/rest/api/3/issueLink")
+        linkPost.setHeader('Authorization', "Basic " + "${jiraUserEmail}:${apiToken}".bytes.encodeBase64().toString())
+        linkPost.setHeader('Content-Type', 'application/json')
+        
+        def linkJson = JsonOutput.toJson(linkData)
+        linkPost.setEntity(new StringEntity(linkJson))
+        
+        def linkResponse = httpClient.execute(linkPost)
+        def linkResponseBody = linkResponse.entity.content.text
+        
+        if (linkResponse.statusLine.statusCode == 201) {
+            logger.info "Issues linked successfully: ${issue.key} and ${newIssueKey}"
+        } else {
+            logger.error "Failed to link issues. Status: ${linkResponse.statusLine.statusCode}, Response: ${linkResponseBody}"
+        }
+    } catch (Exception e) {
+        logger.error "An error occurred while linking the issues: ${e.message}"
+    }
+    
+} else {
+    logger.info "Issue type is not RCA or the status is not Done, no new issue will be created."
+}

@@ -1,0 +1,10 @@
+def issueKey = issue.key 
+def issueType = issue.fields.issuetype.name 
+
+if (issueType == "Change Request (Business)") {
+    def transitionId = 41
+    def transition = post("/rest/api/2/issue/" + issue.key + "/transitions")
+                 .header("Content-Type", "application/json")
+                 .body([transition: [id: transitionId]])
+                 .asObject(Map)
+}

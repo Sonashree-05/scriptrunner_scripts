@@ -1,0 +1,29 @@
+#Off Cycle deployment field should be showcased only when the Release type field has "Off-Cycle" as a selected option
+
+const single = getFieldById("customfield_10194"); // Single-select field
+const text = getFieldById("customfield_10199"); // Off-Cycle Deployment field
+
+// Utility function to update text field visibility based on single field value
+function updateTextVisibility(singleValue) {
+    if (!singleValue || singleValue.value === null || singleValue.value === undefined) {
+        text.setVisible(false); // Hide when no value is selected
+    } else if (singleValue.value.toLowerCase() === "off-cycle release") {
+        text.setVisible(true); // Show for "Off-Cycle Release"
+    } else if (singleValue.value.toLowerCase() === "standard release") {
+        text.setVisible(false); // Hide for "Standard Release"
+    } else {
+        text.setVisible(false); // Default to hidden for unrecognized values
+    }
+}
+
+// On issue load logic
+if (isIssueView()) {
+    const singleValue = single.getValue(); // Get the current value of the single-select field
+    updateTextVisibility(singleValue);
+}
+
+// On change logic
+single.onChange(function () {
+    const singleValue = single.getValue(); // Get the updated value of the single-select field
+    updateTextVisibility(singleValue);
+});

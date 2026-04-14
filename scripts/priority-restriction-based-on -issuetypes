@@ -1,0 +1,6 @@
+const context = await getContext()
+const issueType = context.extension.issueType.name
+const priority = getFieldById('priority')
+if(issueType == 'Change Request (Business)'){
+    priority.setOptionsVisibility(["2","3","4"],true)
+}

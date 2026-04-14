@@ -1,0 +1,44 @@
+#ETA for UAT field should become un-editabel once it reaches UAT state and later to that state this field should be read-only
+
+// Get the fields
+const etaforuatField = getFieldById("customfield_10189");
+const updatedhistoryField = getFieldById("customfield_10190");
+
+// Get the context
+const context = await getContext();
+const issueId = context.extension.issue.id;
+
+// Fetch issue details to get the current status
+const issueRes = await makeRequest(`/rest/api/3/issue/${issueId}`);
+const issueStatusId = issueRes.body.fields.status.id;
+
+// Status ID for "UAT" (replace with actual ID for UAT status)
+const uatStatusId = "10015"; // Replace with your actual UAT status ID
+
+// Fetch roles for the current user in the project
+const projectId = context.extension.project.id;
+const rolesRes = await makeRequest(`/rest/api/3/project/${projectId}/roledetails?currentMember=true`);
+const roleNames = rolesRes.body.map(item => item.name);
+
+// Define required roles (adjust as needed)
+const devRole = "Dev Lead";
+const qaRole = "QA";
+
+// Check user roles
+const userHasQaRole = roleNames.includes(devRole);
+const userHasQcRole = roleNames.includes(qaRole);
+
+// Logic for customfield_10189 (ETA for UAT)
+if (issueStatusId === uatStatusId) {
+    // Make field uneditable when status is "UAT"
+    etaforuatField.setReadOnly(true);
+} else if ((userHasQaRole && issueStatusId === "10013") || (userHasQcRole && issueStatusId === "10014")) {
+    // Editable for specific roles in other statuses
+    etaforuatField.setReadOnly(false);
+} else {
+    etaforuatField.setReadOnly(true);
+}
+
+// Logic for customfield_10190 (Updated History)
+// Always make this field read-only for all users
+updatedhistoryField.setReadOnly(true);

@@ -1,0 +1,4 @@
+// Check if there is at least one "Sub-ticket for Development Activity" subtask
+issue.subtasks
+    .filter(s => s.issueType.name == 'Development')
+    .length > 0

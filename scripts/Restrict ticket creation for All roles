@@ -1,0 +1,11 @@
+// List of restricted roles
+restrictedRoles = ["QA", "Business Users", "QC", "Developer", "Pre-Auth Approver", 
+                   "Mini CAB Application Head", "Infosec Lead", "Dev Lead", 
+                   "Deployment Team", "Change Lead", "Catch and Dispatch", 
+                   "Business Approver", "Application Lead"];
+
+// Get the user roles in the project
+userRoles = user.getProjectRoles(project).map(p => p.name);
+
+// Return true to allow issue creation only if the user has none of the restricted roles
+!userRoles.some(role => restrictedRoles.includes(role))
