@@ -1,0 +1,17 @@
+name: Count Files
+ 
+on:
+  workflow_dispatch:
+ 
+jobs:
+  count-files:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+ 
+    - name: Count files
+      run: |
+        echo "Counting all files in the repository:"
+        file_count=$(find . -type f | wc -l)
+        echo "Total number of files: $file_count"

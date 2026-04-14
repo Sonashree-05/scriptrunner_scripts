@@ -1,0 +1,38 @@
+name: Create Jira Issue
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  create-jira-issue:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Create Jira Issue
+      env:
+        JIRA_BASE_URL: ${{ secrets.JIRA_URL }}
+        JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+        JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+      run: |
+        echo "JIRA_BASE_URL=${{ secrets.JIRA_URL }}"
+        curl --request POST \
+          --url "${{ secrets.JIRA_URL }}/rest/api/3/issue" \
+          --user "${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" \
+          --header 'Accept: application/json' \
+          --header 'Content-Type: application/json' \
+          --data '{
+            "fields": {
+              "project": {
+                "key": "NW"
+              },
+              "summary": "Main order flow broken",
+              "issuetype": {
+                "id": "10005"
+              }
+            }
+          }'

@@ -1,0 +1,16 @@
+name: List Files in Repository
+ 
+on:
+  workflow_dispatch:
+jobs:
+  list-files:
+    runs-on: ubuntu-latest
+ 
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+ 
+      - name: List files in repository
+        run: |
+          echo "Listing all files in the repository directory:"
+          find . -type f

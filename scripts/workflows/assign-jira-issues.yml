@@ -1,0 +1,38 @@
+name: Assign Unassigned Jira Issues
+
+on:
+  workflow_dispatch: # Allows manual triggering of the workflow
+
+jobs:
+  assign_issues:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Assign unassigned Jira issues to me
+      env:
+        JIRA_HOST: ${{ secrets.JIRA_HOST }}
+        JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+        JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        JIRA_PROJECT_KEY: ${{ secrets.JIRA_PROJECT_KEY }}
+        JIRA_ACCOUNT_ID: ${{ secrets.JIRA_ACCOUNT_ID }}
+      run: |
+        echo "Fetching unassigned issues from project $JIRA_PROJECT_KEY..."
+        
+        response=$(curl -s -X GET -u $JIRA_EMAIL:$JIRA_API_TOKEN \
+        -H "Content-Type: application/json" \
+        "https://$JIRA_HOST/rest/api/3/search?jql=project=$JIRA_PROJECT_KEY%20AND%20assignee%20is%20EMPTY")
+        
+        issues=$(echo $response | jq -r '.issues[] | .id')
+        
+        echo "Found issues: $issues"
+
+        for issue_id in $issues; do
+          echo "Assigning issue $issue_id to $JIRA_EMAIL..."
+          curl -s -X PUT -u $JIRA_EMAIL:$JIRA_API_TOKEN \
+          -H "Content-Type: application/json" \
+          --data "{\"accountId\":\"$JIRA_ACCOUNT_ID\"}" \
+          "https://$JIRA_HOST/rest/api/3/issue/$issue_id/assignee"
+        done

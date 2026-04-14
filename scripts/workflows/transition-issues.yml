@@ -1,0 +1,56 @@
+name: Transition Jira Issues
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  transition-jira-issues:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Fetch Issues in Specific Status
+      id: fetch-issues
+      env:
+        JIRA_BASE_URL: ${{ secrets.JIRA_URL }}
+        JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+        JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+      run: |
+        JQL_QUERY=$(echo "status='To Do'" | jq -sRr @uri)  # Encode the JQL query
+        SEARCH_RESULTS=$(curl --request GET \
+          --url "${JIRA_BASE_URL}/rest/api/3/search?jql=${JQL_QUERY}" \
+          --user "${JIRA_EMAIL}:${JIRA_API_TOKEN}" \
+          --header 'Accept: application/json')
+        echo "${SEARCH_RESULTS}" > search_results.json
+        ISSUE_KEYS=$(echo "${SEARCH_RESULTS}" | jq -r '.issues[].key' | tr '\n' ' ')
+        echo "ISSUE_KEYS=${ISSUE_KEYS}" >> $GITHUB_ENV
+
+    - name: Debug: Print ISSUE_KEYS
+      run: echo "ISSUE_KEYS=${{ env.ISSUE_KEYS }}"
+
+    - name: Transition Each Issue
+      if: env.ISSUE_KEYS != ''
+      env:
+        JIRA_BASE_URL: ${{ secrets.JIRA_URL }}
+        JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+        JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        ISSUE_KEYS: ${{ env.ISSUE_KEYS }}
+        TRANSITION_ID: '11' # Replace with your transition ID
+      run: |
+        for ISSUE_KEY in ${ISSUE_KEYS}; do
+          echo "Transitioning issue: ${ISSUE_KEY}"
+          curl --request POST \
+            --url "${JIRA_BASE_URL}/rest/api/3/issue/${ISSUE_KEY}/transitions" \
+            --user "${JIRA_EMAIL}:${JIRA_API_TOKEN}" \
+            --header 'Accept: application/json' \
+            --header 'Content-Type: application/json' \
+            --data '{
+              "transition": {
+                "id": "'"${TRANSITION_ID}"'"
+              }
+            }'
+        done

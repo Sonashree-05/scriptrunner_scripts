@@ -1,0 +1,20 @@
+name: Run a script
+
+on:
+  push
+
+jobs:
+  assign_issues:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: List repo files
+      run: ls -ltra
+
+    - name: Execute shell script
+      run: |
+        chmod +x "test script.sh"
+        ./"test script.sh"

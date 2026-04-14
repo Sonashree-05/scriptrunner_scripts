@@ -1,0 +1,16 @@
+name: close inactive issues
+on:
+  schedule: 
+   - cron: "5 0 * * *" 
+
+jobs:
+  close-issue:
+    uses: ubuntu-latest
+
+steps:
+  uses: Sonashrees/actions@main
+  
+  
+    
+        
+

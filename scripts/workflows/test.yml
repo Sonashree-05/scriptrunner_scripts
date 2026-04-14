@@ -1,0 +1,20 @@
+name: Add Jira Comment
+ 
+on:
+  issues:
+    types: [closed]
+ 
+jobs:
+  add-jira-comment:
+    runs-on: ubuntu-latest
+ 
+    steps:
+    - name: Add comment to Jira issue
+      uses: atlassian/gajira-comment@v3
+      with:
+        issue: YOUR_ISSUE_KEY
+        body: "GitHub issue ${{ github.event.issue.number }} has been closed."
+      env:
+        JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+        JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        JIRA_SITE: ${{ secrets.JIRA_SITE }}

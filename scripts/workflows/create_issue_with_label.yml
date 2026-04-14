@@ -1,0 +1,65 @@
+name: Create Jira Issue with Label
+
+on:
+  workflow_dispatch: # Allows manual triggering of the workflow
+
+jobs:
+  create_issue:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Create Jira issue with current date and time label
+      env:
+        JIRA_HOST: ${{ secrets.JIRA_HOST }}
+        JIRA_EMAIL: ${{ secrets.JIRA_EMAIL }}
+        JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+        JIRA_PROJECT_KEY: ${{ secrets.JIRA_PROJECT_KEY }}
+      run: |
+        # Get the current date and time
+        current_datetime=$(date '+%Y-%m-%d_%H-%M-%S')
+        label="created_at_$current_datetime"
+
+        echo "Creating a Jira issue in project $JIRA_PROJECT_KEY with label $label..."
+
+        # Define the issue data
+        issue_data=$(cat <<EOF
+        {
+          "fields": {
+            "project": {
+              "key": "$JIRA_PROJECT_KEY"
+            },
+            "summary": "New issue created at $current_datetime",
+            "description": {
+              "type": "doc",
+              "version": 1,
+              "content": [
+                {
+                  "type": "paragraph",
+                  "content": [
+                    {
+                      "text": "This issue was created via GitHub Actions at $current_datetime",
+                      "type": "text"
+                    }
+                  ]
+                }
+              ]
+            },
+            "issuetype": {
+              "name": "Task"
+            },
+            "labels": ["$label"]
+          }
+        }
+        EOF
+        )
+
+        # Create the issue
+        response=$(curl -s -X POST -u $JIRA_EMAIL:$JIRA_API_TOKEN \
+        -H "Content-Type: application/json" \
+        -d "$issue_data" \
+        "https://$JIRA_HOST/rest/api/3/issue")
+
+        echo "Response: $response"
