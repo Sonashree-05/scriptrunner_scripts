@@ -1,0 +1,71 @@
+#update ETA for UAT updated history field once the Eta for UAT field is updated (SCript Listener)
+
+import java.text.SimpleDateFormat
+import java.util.TimeZone
+
+def issueKey = issue.key
+
+// Retrieve the issue changelog
+def changelogResponse = get("/rest/api/2/issue/${issueKey}?expand=changelog")
+        .header("Content-Type", "application/json")
+        .asObject(Map)
+
+if (changelogResponse.status != 200) {
+    println("Failed to fetch changelog: ${changelogResponse.status}")
+    return
+}
+
+def issueDetails = changelogResponse.body
+def histories = issueDetails.changelog.histories
+
+// Initialize a StringBuilder to store the content
+def contentBuilder = new StringBuilder()
+
+// Define a SimpleDateFormat instance for IST
+def sdf = new SimpleDateFormat("dd-MM-yyyy HH:mm")
+sdf.timeZone = TimeZone.getTimeZone("IST")
+
+// Variables to store the most recent value of customfield_10189
+def mostRecentCustomFieldValue = null
+
+// Iterate over the histories to find the ones related to customfield_10189
+histories.each { history ->
+    history.items.each { item ->
+        if (item.fieldId == "customfield_10189") {
+            def author = history.author?.displayName ?: "Unknown"
+            contentBuilder.append("User: ${author}\n")
+
+            def created = history.created
+            // Parse the created date
+            def formattedDate = created ? sdf.format(new Date().parse("yyyy-MM-dd'T'HH:mm:ss.SSSZ", created)) : "Unknown"
+            contentBuilder.append("Date: ${formattedDate}\n")
+
+            def fromString = item.fromString ?: "N/A"
+            def toString = item.toString ?: "N/A"
+            contentBuilder.append("Old Value: ${fromString}\n")
+            contentBuilder.append("New Value: ${toString}\n\n")
+
+            // Track the most recent value of the field
+            mostRecentCustomFieldValue = toString
+        }
+    }
+}
+
+// Get the content as a string
+def content = contentBuilder.toString()
+
+// Update the custom field with the constructed content
+def updateResponse = put("/rest/api/2/issue/${issueKey}")
+        .header("Content-Type", "application/json")
+        .body([
+            fields: [
+                customfield_10190: content
+            ]
+        ])
+        .asString()
+
+if (updateResponse.status == 204) {
+    println("Custom field updated successfully.")
+} else {
+    println("Failed to update custom field: ${updateResponse.status} - ${updateResponse.body}")
+}

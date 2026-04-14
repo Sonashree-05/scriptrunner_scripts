@@ -1,0 +1,75 @@
+// tabs will be visible as per status and will be editable based on roles at a particular status. Once the status has passed then the fields will be read only.
+
+// QA field visibility and editability based on the transitioned status and user role
+const startdateField = getFieldById("customfield_10015");
+const enddateField = getFieldById("customfield_10140");
+const fsField = getFieldById("customfield_10097");
+const tsField = getFieldById("customfield_10098");
+const sitField = getFieldById("customfield_10117");
+const uatField = getFieldById("customfield_10118");
+
+const context = await getContext();
+
+// Get the current issue ID
+const issueId = context.extension.issue.id;
+
+// Fetch the issue details to get the status
+const res = await makeRequest(`/rest/api/3/issue/${issueId}`);
+const issueStatusId = res.body.fields.status.id;
+
+// Fetch roles for the current user in this project
+const projectId = context.extension.project.id;
+const getProjectRolesForCurrentUser = await makeRequest(`/rest/api/3/project/${projectId}/roledetails?currentMember=true`);
+const roleNames = getProjectRolesForCurrentUser.body.map(item => item.name);
+
+// Define the required role
+const requiredRole = "Dev Lead";
+
+// Check if the user has the 'Dev Lead' role
+const userHasRequiredRole = roleNames.includes(requiredRole);
+
+// Define the statuses where the fields should be visible but not editable
+const visibleStatuses = ["10039", "10018", "10013", "10036", "10014", "10022", "10016", "10017", "10015", "10023", "10020", "10021","10019","10031"];
+
+// Logic to handle field visibility and editability based on role and status
+if (issueStatusId === "10013" && userHasRequiredRole) {
+    // Make the fields visible and editable if the status is "10013" and the user has the 'Dev Lead' role
+    startdateField.setVisible(true);
+    enddateField.setVisible(true);
+    fsField.setVisible(true);
+    tsField.setVisible(true);
+    sitField.setVisible(true);
+    uatField.setVisible(true);
+    
+    startdateField.setReadOnly(false); // Editable
+    enddateField.setReadOnly(false);   // Editable
+    fsField.setReadOnly(false);        // Editable
+    tsField.setReadOnly(false);        // Editable
+    sitField.setReadOnly(false);       // Editable
+    uatField.setReadOnly(false);       // Editable  // Editable
+
+} else if (visibleStatuses.includes(issueStatusId)) {
+    // In all other statuses, the fields should be visible but read-only
+    startdateField.setVisible(true);
+    enddateField.setVisible(true);
+    fsField.setVisible(true);
+    tsField.setVisible(true);
+    sitField.setVisible(true);
+    uatField.setVisible(true);
+    
+    startdateField.setReadOnly(true);  // Read-only
+    enddateField.setReadOnly(true);    // Read-only
+    fsField.setReadOnly(true);         // Read-only
+    tsField.setReadOnly(true);         // Read-only
+    sitField.setReadOnly(true);        // Read-only
+    uatField.setReadOnly(true);        // Read-only
+
+} else {
+    // Hide the fields if the status is not in the defined list
+    startdateField.setVisible(false);
+    enddateField.setVisible(false);
+    fsField.setVisible(false);
+    tsField.setVisible(false);
+    sitField.setVisible(false);
+    uatField.setVisible(false);
+}

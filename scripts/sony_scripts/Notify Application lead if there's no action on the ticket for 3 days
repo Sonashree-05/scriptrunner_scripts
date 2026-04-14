@@ -1,0 +1,64 @@
+// Define the JQL query to find issues where the "Application Lead" field is populated
+String jqlQuery = 'project = "SAP - SANDBOX " AND updated <= -3d AND "Application Lead" IS NOT EMPTY AND status NOT IN (Closed,"Closed - Complete",Done,Reject,"Create Bug Fix","Testing Complete")'
+
+// Fetch issues matching the JQL query
+def issues = get('/rest/api/2/search')
+        .queryString('jql', jqlQuery)
+        .queryString('fields', 'key,assignee,status,customfield_10148') // customfield_10148 is the "Application Lead" field
+        .asObject(Map)
+        .body
+        .issues
+
+// Iterate over the issues
+issues.each { issue ->
+    def applicationLead = issue.fields["customfield_10148"] // Application Lead field (replace with actual ID)
+    
+    // Debugging: Log the entire issue for inspection
+    println("Processing issue ${issue.key}: ${issue.fields}")
+
+    if (applicationLead) {
+        def leadAccountId = applicationLead.accountId
+        def leadDisplayName = applicationLead.displayName
+        def issueKey = issue.key
+        def issueStatus = issue.fields.status.name
+        def issueUrl = "https://spnitech.atlassian.net/browse/${issueKey}"
+
+        // Ensure that the issue has the correct application lead
+        if (leadAccountId) {
+            // Log application lead information
+            println("Processing issue ${issueKey}. Application Lead: ${leadDisplayName} (AccountId: ${leadAccountId})")
+
+            // Construct the email body
+            def messageBody = """
+                <p>Hi <b>${leadDisplayName}</b>,</p>
+                <p>This is a friendly reminder that the issue <a href="${issueUrl}">${issueKey}</a> is still in the '${issueStatus}' status and hasn't had any updates recently.</p>
+                <p>Please review and take action as needed.</p>
+            """
+
+            // Send the email notification to the application lead
+            def sendNotification = post("/rest/api/2/issue/${issueKey}/notify")
+                    .header("Content-Type", "application/json")
+                    .body([
+                            subject : "Reminder: Action required on issue ${issueKey}",
+                            htmlBody: messageBody,
+                            to      : [
+                                users: [
+                                    [accountId: leadAccountId] // Send the notification to the Application Lead only
+                                ]
+                            ]
+                    ])
+                    .asString()
+
+            // Check for successful email notification
+            if (sendNotification.status != 204) {
+                println("Failed to send notification for issue ${issueKey}. Status: ${sendNotification.status}, Response: ${sendNotification.body}")
+            } else {
+                println("Notification sent successfully for issue ${issueKey} to ${leadDisplayName}.")
+            }
+        } else {
+            println("No valid Application Lead found for issue ${issueKey}. Skipping notification.")
+        }
+    } else {
+        println("Application Lead not assigned for issue ${issue.key}. Skipping notification.")
+    }
+}

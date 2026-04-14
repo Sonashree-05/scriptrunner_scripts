@@ -1,0 +1,18 @@
+issue.issueType.name == 'Change Request (Business)' && 
+issue.links.some(link => link.type && link.type.name == 'Test' && 
+                          (link.outwardIssue && link.outwardIssue.issueType.name == 'Test' || 
+                           link.inwardIssue && link.inwardIssue.issueType.name == 'Test'))
+
+
+
+#restrict transition if test/test set/test paln has not been linked
+
+issue.issueType.name == 'Change Request (Business)' && 
+issue.links.some(link => link.type && link.type.name == 'Test' &&
+    (
+        (link.outwardIssue && 
+         ['Test', 'Test Set', 'Test Plan'].includes(link.outwardIssue.issueType.name)) || 
+        (link.inwardIssue && 
+         ['Test', 'Test Set', 'Test Plan'].includes(link.inwardIssue.issueType.name))
+    )
+)

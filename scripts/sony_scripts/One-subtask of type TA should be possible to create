@@ -1,0 +1,1 @@
+!(issue.parent != null && issue.parent.childIssues.some(s => s.issueType.name.trim() == 'Technical Assessment'))

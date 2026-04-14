@@ -1,0 +1,18 @@
+#Make "ETA for UAT updated history" field to be hidden on the screen and make it visible only on the dashboard and filter
+
+// Access the field customfield_10190
+const targetField = getFieldById("customfield_10190");
+
+// Define the account ID of Sonashree (replace this with Sonashree's actual account ID)
+const targetAccountId = '712020:4e5d417d-9cb8-4bc8-aa31-bf99bd24cf06'; // Replace with Sonashree's actual account ID
+
+// Get the context and current user account ID
+const context = await getContext();
+const currentUserId = context.accountId;
+
+// Check if the current user is Sonashree
+if (currentUserId === targetAccountId) {
+    targetField.setVisible(true); // Show the field for Sonashree
+} else {
+    targetField.setVisible(false); // Hide the field for everyone else
+}

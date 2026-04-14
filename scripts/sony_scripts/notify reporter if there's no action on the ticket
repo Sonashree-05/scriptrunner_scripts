@@ -1,0 +1,57 @@
+#send a remainder to the reporter when there's no action taken on the ticket since 3 days.
+
+// Define the JQL query to find issues in the 'UAT' state assigned to the reporter
+String jqlQuery = "project = 'SSP' AND status = 'UAT' AND reporter is not EMPTY"
+
+// Fetch issues matching the JQL query
+def issues = get('/rest/api/2/search')
+        .queryString('jql', jqlQuery)
+        .queryString('fields', 'key,reporter,status,customfield_10100') // Make sure the custom field ID is correct
+        .asObject(Map)
+        .body
+        .issues
+
+// Iterate over the issues
+issues.each { issue ->
+    def reporterDetails = issue.fields.reporter
+    def reporterAccountId = reporterDetails?.accountId
+    def reporterDisplayName = reporterDetails?.displayName
+
+    // Ensure the reporter is available and the ticket is still in 'UAT'
+    if (reporterAccountId) {
+        def uatStatus = issue.fields.customfield_10100 // Replace customfield_10100 with the actual custom field ID for pass/fail status
+
+        // Only send a reminder if the custom field doesn't have a value (i.e., it hasn't been passed or failed)
+        if (!uatStatus) {
+            def messageBody = """
+                <p>Hi <b>${reporterDisplayName}</b>,</p>
+                <p>The ticket <b>${issue.key}</b> is currently with you for UAT. Please review and update the status accordingly.</p>
+                <p>Thank you!</p>
+            """
+
+            // Send the email notification
+            def sendNotification = post("/rest/api/2/issue/${issue.key}/notify")
+                    .header("Content-Type", "application/json")
+                    .body([
+                            subject : "Reminder: ${issue.key} is in UAT",
+                            htmlBody: messageBody,
+                            to      : [
+                                    users: [
+                                        [accountId: reporterAccountId] // Send the notification to the reporter by accountId
+                                    ]
+                            ]
+                    ])
+                    .asString()
+
+            if (sendNotification.status != 204) {
+                println("Failed to send notification for issue ${issue.key}. Status: ${sendNotification.status}, Response: ${sendNotification.body}")
+            } else {
+                println("Notification sent successfully for issue ${issue.key} to ${reporterDisplayName}.")
+            }
+        } else {
+            println("Issue ${issue.key} has been updated with UAT status. Skipping reminder.")
+        }
+    } else {
+        println("No reporter found for issue ${issue.key}. Skipping notification.")
+    }
+}
