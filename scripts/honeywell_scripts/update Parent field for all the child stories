@@ -1,0 +1,110 @@
+// ScriptRunner for Jira Cloud - Update Parent field: Story -> Epic
+// Source: Book1 (2).csv (88 Story -> Parent Epic mappings)
+// DRY RUN by default - prints what WOULD be updated, changes nothing.
+
+def DRY_RUN = false
+def START_INDEX = 0
+def BATCH_SIZE = 150
+
+def mappings = [
+
+    // SGB-108445 (20 stories)
+    'SGB-109121': 'SGB-108445',
+    'SGB-109122': 'SGB-108445',
+    'SGB-109123': 'SGB-108445',
+    'SGB-109124': 'SGB-108445',
+    'SGB-109125': 'SGB-108445',
+    'SGB-109126': 'SGB-108445',
+    'SGB-109127': 'SGB-108445',
+    'SGB-109128': 'SGB-108445',
+    'SGB-109129': 'SGB-108445',
+    'SGB-109130': 'SGB-108445',
+    'SGB-109131': 'SGB-108445',
+    'SGB-109132': 'SGB-108445',
+    'SGB-109133': 'SGB-108445',
+    'SGB-109134': 'SGB-108445',
+    'SGB-109135': 'SGB-108445',
+    'SGB-109136': 'SGB-108445',
+    'SGB-109137': 'SGB-108445',
+    'SGB-109138': 'SGB-108445',
+    'SGB-109139': 'SGB-108445',
+    'SGB-109140': 'SGB-108445'
+
+]
+
+def entries = mappings.entrySet().toList()
+def endIndex = Math.min(START_INDEX + BATCH_SIZE, entries.size())
+
+println "Total mappings: ${entries.size()}"
+println "Processing indexes ${START_INDEX} to ${endIndex - 1}"
+println "DRY_RUN = ${DRY_RUN}"
+println "------------------------------------------------------------"
+
+if (START_INDEX >= entries.size()) {
+    println "Nothing to process. START_INDEX is beyond the mapping list."
+    return
+}
+
+int successCount = 0
+int errorCount = 0
+int skippedCount = 0
+
+for (int i = START_INDEX; i < endIndex; i++) {
+    def storyKey = entries[i].key
+    def parentKey = entries[i].value
+
+    try {
+        // Check current parent first, to avoid redundant updates on re-runs
+        def getResponse = get("/rest/api/3/issue/${storyKey}")
+            .queryString('fields', 'parent')
+            .asString()
+
+        if (getResponse.status != 200) {
+            println "ERROR [${i}] - Could not fetch ${storyKey} | HTTP ${getResponse.status} | ${getResponse.body}"
+            errorCount++
+            continue
+        }
+
+        def storyData = new groovy.json.JsonSlurper().parseText(getResponse.body)
+        def currentParentKey = storyData.fields?.parent?.key
+
+        if (currentParentKey == parentKey) {
+            println "SKIP (already set) [${i}] - ${storyKey} already has parent ${parentKey}"
+            skippedCount++
+            continue
+        }
+
+        if (DRY_RUN) {
+            println "DRY RUN [${i}] - WOULD UPDATE: ${storyKey} -> parent ${parentKey} (current: ${currentParentKey ?: 'none'})"
+            successCount++
+            continue
+        }
+
+        def putResponse = put("/rest/api/3/issue/${storyKey}")
+            .header("Content-Type", "application/json")
+            .body([
+                fields: [
+                    parent: [key: parentKey]
+                ]
+            ])
+            .asString()
+
+        if (putResponse.status >= 200 && putResponse.status < 300) {
+            println "UPDATED [${i}] - ${storyKey} -> ${parentKey}"
+            successCount++
+        } else {
+            println "FAILED [${i}] - ${storyKey} -> ${parentKey} | HTTP ${putResponse.status} | ${putResponse.body}"
+            errorCount++
+        }
+    } catch (Exception e) {
+        println "ERROR [${i}] - ${storyKey} -> ${parentKey} | ${e.message}"
+        errorCount++
+    }
+}
+
+println "------------------------------------------------------------"
+println "Batch complete. Next START_INDEX = ${endIndex}"
+println "Success: ${successCount}, Skipped: ${skippedCount}, Errors: ${errorCount}"
+if (DRY_RUN) {
+    println "This was a DRY RUN - no issues were changed. Set DRY_RUN = false to apply."
+}
