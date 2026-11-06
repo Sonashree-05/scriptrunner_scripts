@@ -1,0 +1,45 @@
+/*
+* ScriptRunner Behaviour: L1 -> L2 dependent dropdown
+*
+* L1: customfield_XXXXX   <-- replace with your L1 field ID
+* L2: customfield_18950
+*
+* Configure this as an L1 field script.
+* Run on load and when L1 changes.
+*/
+ 
+const l1Field = getFieldById("customfield_XXXXX");   // <-- replace
+const l2Field = getFieldById("customfield_18950");
+ 
+/* L1 option ID -> allowed L2 option IDs */
+const l2OptionsByL1Id: Record<string, string[]> = {
+  "348016": ["348027","348028","348029","348899","348030"],                                    // ITD
+  "348017": ["348034","348031","348033","348032","348037","348035","348036","348038","348039"], // RTR
+  "348018": ["348040","348041","348042","348043","348044","348045"],                            // PTP
+  "348019": ["348046","348047","348048","348900"],                                              // STP
+  "348020": ["348049"],                                                                         // SUP
+  "348021": ["348050","348051","348052"],                                                       // ITC
+  "348022": ["348055","348053","348056","348057"],                                              // PRJ
+  "348023": ["348058","348059","348060","348061","348062"],                                     // CTO
+  "348024": ["348063","348064","348065"],                                                       // LTQ
+  "348025": ["348066","348067"],                                                                // ITO
+  "348026": ["348068"]                                                                          // Acquire to Offboarding
+};
+ 
+const allL2OptionIds = Object.values(l2OptionsByL1Id).flat();
+ 
+// Selected L1 -> allowed L2 options (empty L1 = no L2 options)
+const l1Id = l1Field.getValue()?.id?.toString();
+const allowedL2 = l1Id ? (l2OptionsByL1Id[l1Id] ?? []) : [];
+ 
+// Hide all L2 options, then show only the ones for the chosen L1
+l2Field.setOptionsVisibility(allL2OptionIds, false);
+if (allowedL2.length > 0) {
+  l2Field.setOptionsVisibility(allowedL2, true);
+}
+ 
+// Clear L2 if it is no longer valid for the chosen L1
+const selectedL2 = l2Field.getValue();
+if (selectedL2?.id && !allowedL2.includes(selectedL2.id.toString())) {
+  l2Field.setValue(null);
+}
